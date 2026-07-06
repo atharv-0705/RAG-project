@@ -2,7 +2,6 @@
 #split into chunks 
 #create the embeddings 
 #store into chroma 
-
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_mistralai import MistralAIEmbeddings
@@ -11,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-data = PyPDFLoader("document loaders/SQL.pdf")
+data = PyPDFLoader("document loaders/deeplearning.pdf")
 docs = data.load()
 
 splitter = RecursiveCharacterTextSplitter(
