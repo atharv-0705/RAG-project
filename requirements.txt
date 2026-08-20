@@ -16,10 +16,12 @@ langchain-mistralai>=0.2.0
 # Vector Database
 # =========================
 chromadb>=1.0.0
+langchain-chroma>=0.1.2
 
 # =========================
 # Embeddings
 # =========================
+langchain-huggingface>=0.1.0
 sentence-transformers>=5.0.0
 huggingface-hub>=0.34.0
 transformers>=4.55.0
@@ -48,6 +50,7 @@ scikit-learn>=1.7.0
 # =========================
 # Utilities
 # =========================
+streamlit>=1.30.0
 python-dotenv>=1.1.0
 tqdm>=4.67.0
 requests>=2.32.0
@@ -79,4 +82,5 @@ lxml
 # ===========================
 # Text Tokenization
 # ===========================
-tiktoken
+tiktokenaiofiles>=23.2.1
+python-multipart>=0.0.9

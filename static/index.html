@@ -1,0 +1,267 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG AI Assistant – Ask Your Documents</title>
+  <meta name="description" content="Upload PDFs and ask questions powered by Mistral AI and ChromaDB vector search." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg-deep:#04060f;--bg-card:rgba(255,255,255,0.04);--bg-card-h:rgba(255,255,255,0.08);
+      --border:rgba(255,255,255,0.10);--border-h:rgba(139,92,246,0.50);--glass-blur:18px;
+      --accent-1:#8b5cf6;--accent-2:#06b6d4;--accent-3:#f59e0b;
+      --accent-g:linear-gradient(135deg,#8b5cf6,#06b6d4);
+      --text-primary:#f1f5f9;--text-muted:#94a3b8;--text-subtle:#475569;
+      --success:#10b981;--danger:#ef4444;--warning:#f59e0b;
+      --radius-sm:8px;--radius-md:14px;--radius-lg:22px;--radius-xl:32px;
+      --shadow-glow:0 0 40px rgba(139,92,246,0.15);--shadow-card:0 8px 32px rgba(0,0,0,0.40);
+      --transition:all 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--bg-deep);color:var(--text-primary);min-height:100vh;overflow-x:hidden}
+    .bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+    .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.18;animation:drift 18s ease-in-out infinite alternate}
+    .orb-1{width:520px;height:520px;background:#8b5cf6;top:-120px;left:-100px;animation-delay:0s}
+    .orb-2{width:400px;height:400px;background:#06b6d4;bottom:-80px;right:-80px;animation-delay:-6s}
+    .orb-3{width:300px;height:300px;background:#f59e0b;top:40%;left:55%;animation-delay:-12s}
+    .orb-4{width:200px;height:200px;background:#ec4899;bottom:30%;left:20%;animation-delay:-3s}
+    @keyframes drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,60px) scale(1.08)}100%{transform:translate(-30px,30px) scale(0.95)}}
+    .bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(139,92,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.03) 1px,transparent 1px);background-size:40px 40px}
+    #root{position:relative;z-index:1}
+    .app-layout{display:grid;grid-template-columns:320px 1fr;grid-template-rows:auto 1fr;min-height:100vh;max-width:1400px;margin:0 auto;padding:0 16px}
+    .header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:20px 0;border-bottom:1px solid var(--border);margin-bottom:24px}
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo-icon{width:44px;height:44px;background:var(--accent-g);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 20px rgba(139,92,246,0.4)}
+    .logo-text h1{font-size:18px;font-weight:700;background:var(--accent-g);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .logo-text span{font-size:11px;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase}
+    .header-status{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:99px;backdrop-filter:blur(var(--glass-blur));font-size:13px;color:var(--text-muted)}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:var(--text-subtle);transition:var(--transition)}
+    .status-dot.ok{background:var(--success);box-shadow:0 0 8px var(--success);animation:pulse-dot 2s infinite}
+    .status-dot.err{background:var(--danger)}
+    @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
+    .sidebar{padding-right:20px;display:flex;flex-direction:column;gap:16px;padding-bottom:24px}
+    .glass-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(var(--glass-blur));-webkit-backdrop-filter:blur(var(--glass-blur));box-shadow:var(--shadow-card);padding:24px;transition:var(--transition)}
+    .glass-card:hover{border-color:var(--border-h);box-shadow:var(--shadow-glow),var(--shadow-card)}
+    .card-title{font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .upload-zone{border:2px dashed var(--border);border-radius:var(--radius-md);padding:32px 16px;text-align:center;cursor:pointer;transition:var(--transition);position:relative}
+    .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent-1);background:rgba(139,92,246,0.06)}
+    .upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .upload-icon{font-size:36px;margin-bottom:10px}
+    .upload-zone p{font-size:13px;color:var(--text-muted);line-height:1.6}
+    .upload-hint{font-size:11px;color:var(--text-subtle);margin-top:6px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:var(--radius-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:var(--transition)}
+    .btn:disabled{opacity:0.45;cursor:not-allowed;pointer-events:none}
+    .btn-primary{background:var(--accent-g);color:#fff;box-shadow:0 4px 20px rgba(139,92,246,0.35)}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(139,92,246,0.50)}
+    .btn-danger{background:rgba(239,68,68,0.12);color:var(--danger);border:1px solid rgba(239,68,68,0.25)}
+    .btn-danger:hover{background:rgba(239,68,68,0.20)}
+    .btn-full{width:100%}
+    .progress-wrap{height:4px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:12px}
+    .progress-bar{height:100%;background:var(--accent-g);border-radius:99px;transition:width 0.4s ease}
+    @keyframes progress-indeterminate{0%{left:-50%;width:40%}100%{left:110%;width:40%}}
+    .progress-bar.indeterminate{position:relative;width:40%!important;animation:progress-indeterminate 1.2s ease-in-out infinite}
+    .file-chip{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-sm);font-size:13px;margin-top:12px}
+    .file-chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+    .file-chip-remove{cursor:pointer;color:var(--text-subtle);font-size:16px;transition:color 0.15s;line-height:1}
+    .file-chip-remove:hover{color:var(--danger)}
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .stat-chip{padding:12px 14px;background:var(--bg-card-h);border:1px solid var(--border);border-radius:var(--radius-md);text-align:center}
+    .stat-chip .value{font-size:22px;font-weight:700;color:var(--text-primary)}
+    .stat-chip .label{font-size:11px;color:var(--text-muted);margin-top:2px;letter-spacing:0.04em;text-transform:uppercase}
+    .alert{padding:12px 16px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:flex-start;gap:10px;line-height:1.5}
+    .alert-icon{flex-shrink:0;font-size:15px;margin-top:1px}
+    .alert-success{background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.25);color:#6ee7b7}
+    .alert-error{background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.25);color:#fca5a5}
+    .alert-info{background:rgba(6,182,212,0.10);border:1px solid rgba(6,182,212,0.25);color:#67e8f9}
+    .chat-area{display:flex;flex-direction:column;gap:0;overflow:hidden;padding-bottom:24px}
+    .chat-messages{overflow-y:auto;padding:4px 0;display:flex;flex-direction:column;gap:20px;max-height:calc(100vh - 260px);padding-right:8px;margin-bottom:16px}
+    .chat-messages::-webkit-scrollbar{width:4px}
+    .chat-messages::-webkit-scrollbar-track{background:transparent}
+    .chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px}
+    .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:60px 24px;text-align:center;color:var(--text-subtle)}
+    .empty-state-icon{font-size:56px;opacity:0.5;animation:float 3s ease-in-out infinite}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+    .empty-state h3{font-size:18px;color:var(--text-muted);font-weight:600}
+    .empty-state p{font-size:14px;max-width:340px;line-height:1.6}
+    .message{display:flex;gap:12px;animation:msg-in 0.3s ease}
+    @keyframes msg-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    .message-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-top:2px}
+    .message.user .message-avatar{background:var(--accent-g);box-shadow:0 0 16px rgba(139,92,246,0.35);order:2}
+    .message.assistant .message-avatar{background:linear-gradient(135deg,#06b6d4,#0891b2);box-shadow:0 0 16px rgba(6,182,212,0.35)}
+    .message-content{flex:1}
+    .message.user{flex-direction:row-reverse}
+    .message.user .message-content{text-align:right}
+    .message-bubble{display:inline-block;padding:14px 18px;border-radius:var(--radius-md);font-size:14px;line-height:1.65;max-width:76%;word-break:break-word}
+    .message.user .message-bubble{background:var(--accent-g);color:#fff;border-radius:var(--radius-md) 4px var(--radius-md) var(--radius-md)}
+    .message.assistant .message-bubble{background:var(--bg-card);border:1px solid var(--border);backdrop-filter:blur(var(--glass-blur));color:var(--text-primary);border-radius:4px var(--radius-md) var(--radius-md) var(--radius-md)}
+    .message-time{font-size:11px;color:var(--text-subtle);margin-top:5px;padding:0 2px}
+    .sources-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--accent-2);cursor:pointer;margin-top:10px;border:none;background:none;font-family:inherit;padding:0;transition:opacity 0.15s}
+    .sources-list{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+    .source-chip{padding:10px 12px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.15);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted)}
+    .source-header{display:flex;align-items:center;gap:8px;color:var(--accent-2);font-weight:600;margin-bottom:5px;font-size:11px}
+    .source-text{line-height:1.55;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-subtle);white-space:pre-wrap}
+    .typing-indicator{display:flex;align-items:center;gap:5px;padding:14px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);backdrop-filter:blur(var(--glass-blur));width:fit-content}
+    .typing-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-1);animation:typing 1.2s ease-in-out infinite}
+    .typing-dot:nth-child(2){animation-delay:0.2s;background:var(--accent-2)}
+    .typing-dot:nth-child(3){animation-delay:0.4s;background:var(--accent-3)}
+    @keyframes typing{0%,60%,100%{transform:translateY(0);opacity:0.5}30%{transform:translateY(-6px);opacity:1}}
+    .chat-input-area{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);backdrop-filter:blur(var(--glass-blur));padding:16px;transition:var(--transition)}
+    .chat-input-area:focus-within{border-color:var(--border-h);box-shadow:0 0 0 3px rgba(139,92,246,0.12)}
+    .input-row{display:flex;align-items:flex-end;gap:12px}
+    .chat-textarea{flex:1;background:transparent;border:none;outline:none;font-family:inherit;font-size:14px;color:var(--text-primary);resize:none;line-height:1.5;max-height:120px;min-height:24px}
+    .chat-textarea::placeholder{color:var(--text-subtle)}
+    .send-btn{width:40px;height:40px;border-radius:10px;background:var(--accent-g);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;transition:var(--transition);box-shadow:0 4px 16px rgba(139,92,246,0.35)}
+    .send-btn:hover:not(:disabled){transform:scale(1.08);box-shadow:0 6px 22px rgba(139,92,246,0.5)}
+    .send-btn:disabled{opacity:0.4;cursor:not-allowed}
+    .input-hint{margin-top:10px;font-size:11px;color:var(--text-subtle);display:flex;justify-content:space-between;align-items:center}
+    .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px}
+    .toast{padding:12px 18px;border-radius:var(--radius-md);font-size:13px;font-weight:500;backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:toast-in 0.3s ease;max-width:320px;display:flex;align-items:center;gap:10px}
+    @keyframes toast-in{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+    .toast-success{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.30);color:#6ee7b7}
+    .toast-error{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.30);color:#fca5a5}
+    .toast-info{background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.30);color:#67e8f9}
+    @media(max-width:768px){.app-layout{grid-template-columns:1fr;padding:0 12px}.sidebar{padding-right:0}.chat-messages{max-height:calc(100vh - 340px)}}
+  </style>
+</head>
+<body>
+<div class="bg-canvas">
+  <div class="orb orb-1"></div><div class="orb orb-2"></div>
+  <div class="orb orb-3"></div><div class="orb orb-4"></div>
+</div>
+<div class="bg-grid"></div>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useRef,useCallback}=React;
+const API="http://127.0.0.1:2220";
+function fmt(d){return d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+function useToast(){
+  const[toasts,setToasts]=useState([]);
+  const add=useCallback((msg,type="info")=>{
+    const id=Date.now();
+    setToasts(t=>[...t,{id,msg,type}]);
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3800);
+  },[]);
+  return{toasts,add};
+}
+function ToastContainer({toasts}){
+  if(!toasts.length)return null;
+  return(<div className="toast-container">{toasts.map(t=>(<div key={t.id} className={`toast toast-${t.type}`}><span>{t.type==="success"?"✅":t.type==="error"?"❌":"ℹ️"}</span><span>{t.msg}</span></div>))}</div>);
+}
+function SourcesPanel({sources}){
+  const[open,setOpen]=useState(false);
+  if(!sources||sources.length===0)return null;
+  return(<div><button className="sources-toggle" onClick={()=>setOpen(o=>!o)}><span>{open?"▾":"▸"}</span>{sources.length} source{sources.length!==1?"s":""} retrieved</button>{open&&(<div className="sources-list">{sources.map((s,i)=>(<div key={i} className="source-chip"><div className="source-header"><span>📄</span><span>Page {s.page==="N/A"?"?":Number(s.page)+1}</span></div><div className="source-text">{s.content}</div></div>))}</div>)}</div>);
+}
+function MessageBubble({msg}){
+  return(<div className={`message ${msg.role}`}><div className="message-avatar">{msg.role==="user"?"👤":"🤖"}</div><div className="message-content"><div className="message-bubble">{msg.text}</div>{msg.role==="assistant"&&<SourcesPanel sources={msg.sources}/>}<div className="message-time">{msg.time}</div></div></div>);
+}
+function TypingIndicator(){
+  return(<div className="message assistant"><div className="message-avatar">🤖</div><div className="message-content"><div className="typing-indicator"><div className="typing-dot"></div><div className="typing-dot"></div><div className="typing-dot"></div></div></div></div>);
+}
+function UploadCard({onUploaded,toast}){
+  const[file,setFile]=useState(null);
+  const[dragging,setDragging]=useState(false);
+  const[uploading,setUploading]=useState(false);
+  const[result,setResult]=useState(null);
+  const handleFile=(f)=>{if(f&&f.type==="application/pdf"){setFile(f);setResult(null);}else if(f){toast("Only PDF files are supported.","error");}};
+  const handleDrop=(e)=>{e.preventDefault();setDragging(false);handleFile(e.dataTransfer.files[0]);};
+  const upload=async()=>{
+    if(!file)return;
+    setUploading(true);
+    const fd=new FormData();fd.append("file",file);
+    try{
+      const res=await fetch(`${API}/upload`,{method:"POST",body:fd});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.detail||"Upload failed");
+      setResult({chunks:data.chunks,name:data.filename});
+      toast(`✨ ${data.filename} indexed — ${data.chunks} chunks`,"success");
+      onUploaded(data.chunks);
+    }catch(err){toast(err.message,"error");}
+    finally{setUploading(false);}
+  };
+  return(<div className="glass-card"><div className="card-title"><span>📁</span> Upload Document</div><div className={`upload-zone${dragging?" drag-over":""}`} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={handleDrop}><input type="file" accept=".pdf" id="pdf-input" onChange={e=>handleFile(e.target.files[0])}/><div className="upload-icon">📄</div><p><strong>Drag & drop</strong> your PDF here<br/>or click to browse</p><p className="upload-hint">PDF files only</p></div>{file&&!result&&(<div className="file-chip"><span style={{fontSize:18}}>📎</span><span className="file-chip-name" title={file.name}>{file.name}</span><span className="file-chip-remove" onClick={()=>setFile(null)}>✕</span></div>)}{uploading&&(<div className="progress-wrap"><div className="progress-bar indeterminate"></div></div>)}{result&&(<div className="alert alert-success" style={{marginTop:12}}><span className="alert-icon">✅</span><div><strong>{result.name}</strong> indexed!<br/><span style={{fontSize:12}}>{result.chunks} chunks created</span></div></div>)}<button className="btn btn-primary btn-full" style={{marginTop:14}} disabled={!file||uploading} onClick={upload} id="upload-btn">{uploading?<><span className="spinner"></span> Processing…</>:"⚡ Index Document"}</button></div>);
+}
+function StatsCard({chunks,msgCount,status}){
+  return(<div className="glass-card"><div className="card-title"><span>📊</span> Session Stats</div><div className="stat-grid"><div className="stat-chip"><div className="value">{chunks??'—'}</div><div className="label">Chunks</div></div><div className="stat-chip"><div className="value">{msgCount}</div><div className="label">Messages</div></div></div><div className="alert alert-info" style={{marginTop:14}}><span className="alert-icon">🔍</span><span>MMR · k=4 · Mistral AI</span></div>{status&&(<div className={`alert ${status.has_database?"alert-success":"alert-error"}`} style={{marginTop:8}}><span className="alert-icon">{status.has_database?"🗄️":"⚠️"}</span><span>{status.has_database?"Vector DB ready":"No DB — upload a PDF first"}</span></div>)}</div>);
+}
+function ResetCard({onReset,toast}){
+  const[loading,setLoading]=useState(false);
+  const reset=async()=>{
+    if(!confirm("Delete the database and all uploads?"))return;
+    setLoading(true);
+    try{const res=await fetch(`${API}/reset`,{method:"DELETE"});const data=await res.json();if(!res.ok)throw new Error(data.detail||"Reset failed");toast("Database cleared.","info");onReset();}
+    catch(err){toast(err.message,"error");}
+    finally{setLoading(false);}
+  };
+  return(<div className="glass-card"><div className="card-title"><span>⚙️</span> Actions</div><button className="btn btn-danger btn-full" id="reset-btn" onClick={reset} disabled={loading}>{loading?<><span className="spinner"></span> Resetting…</>:"🗑️ Reset Database"}</button></div>);
+}
+function ChatInputArea({onSend,disabled}){
+  const[text,setText]=useState("");
+  const ref=useRef(null);
+  const send=()=>{const q=text.trim();if(!q)return;onSend(q);setText("");if(ref.current){ref.current.style.height="auto";}};
+  const onKey=(e)=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
+  const autoResize=(e)=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,120)+"px";setText(e.target.value);};
+  return(<div className="chat-input-area"><div className="input-row"><textarea ref={ref} className="chat-textarea" placeholder={disabled?"Upload a PDF to start chatting…":"Ask anything about your document…"} value={text} onChange={autoResize} onKeyDown={onKey} rows={1} id="chat-input" disabled={disabled}/><button className="send-btn" onClick={send} disabled={!text.trim()||disabled} id="send-btn">➤</button></div><div className="input-hint"><span>Shift+Enter for new line · Enter to send</span><span>{text.length}/2000</span></div></div>);
+}
+function App(){
+  const[messages,setMessages]=useState([]);
+  const[typing,setTyping]=useState(false);
+  const[chunks,setChunks]=useState(null);
+  const[status,setStatus]=useState(null);
+  const{toasts,add:toast}=useToast();
+  const bottomRef=useRef(null);
+  useEffect(()=>{
+    const fetchStatus=async()=>{try{const r=await fetch(`${API}/health`);const d=await r.json();setStatus(d);}catch{}};
+    fetchStatus();const t=setInterval(fetchStatus,10000);return()=>clearInterval(t);
+  },[]);
+  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages,typing]);
+  const handleSend=async(question)=>{
+    const userMsg={id:Date.now(),role:"user",text:question,time:fmt(new Date())};
+    setMessages(m=>[...m,userMsg]);setTyping(true);
+    try{
+      const res=await fetch(`${API}/ask`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question})});
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.detail||"Query failed");
+      const aiMsg={id:Date.now()+1,role:"assistant",text:data.answer,sources:data.sources,time:fmt(new Date())};
+      setMessages(m=>[...m,aiMsg]);
+    }catch(err){
+      toast(err.message,"error");
+      setMessages(m=>[...m,{id:Date.now()+1,role:"assistant",text:`⚠️ ${err.message}`,sources:[],time:fmt(new Date())}]);
+    }finally{setTyping(false);}
+  };
+  const handleReset=()=>{setMessages([]);setChunks(null);setStatus(s=>s?{...s,has_database:false}:null);};
+  const hasDB=status?.has_database||chunks!=null;
+  return(<>
+    <div className="app-layout">
+      <header className="header">
+        <div className="logo"><div className="logo-icon">🧠</div><div className="logo-text"><h1>RAG AI Assistant</h1><span>Powered by Mistral AI · ChromaDB</span></div></div>
+        <div className="header-status"><div className={`status-dot ${status?"ok":""}`}></div><span>{status?(status.has_database?"DB Ready":"No DB"):"Connecting…"}</span></div>
+      </header>
+      <aside className="sidebar">
+        <UploadCard onUploaded={(c)=>{setChunks(c);setStatus(s=>s?{...s,has_database:true}:{has_database:true});}} toast={toast}/>
+        <StatsCard chunks={chunks} msgCount={messages.filter(m=>m.role==="user").length} status={status}/>
+        <ResetCard onReset={handleReset} toast={toast}/>
+      </aside>
+      <main className="chat-area">
+        <div className="glass-card" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          {messages.length===0?(<div className="empty-state"><div className="empty-state-icon">💬</div><h3>Start a Conversation</h3><p>Upload a PDF in the panel on the left and ask anything about its content. Answers are grounded in your document.</p></div>):(<div className="chat-messages">{messages.map(m=><MessageBubble key={m.id} msg={m}/>)}{typing&&<TypingIndicator/>}<div ref={bottomRef}/></div>)}
+          <ChatInputArea onSend={handleSend} disabled={!hasDB||typing}/>
+        </div>
+      </main>
+    </div>
+    <ToastContainer toasts={toasts}/>
+  </>);
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
