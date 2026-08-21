@@ -1,5 +1,16 @@
 .env
 .venv
-__pycache__
-chroma_db
-uploads
+__pycache__/
+
+# ChromaDB databases (auto-generated, never commit these)
+chroma_db/
+test_chroma_db/
+*.sqlite3
+*.bin
+
+# Uploads (user data, never commit)
+uploads/
+
+# Python
+*.pyc
+*.pyo
