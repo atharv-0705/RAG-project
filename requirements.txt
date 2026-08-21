@@ -60,8 +60,8 @@ loguru>=0.7.3
 # =========================
 # Optional API Backend
 # =========================
-fastapi>=0.116.0
-uvicorn>=0.35.0
+fastapi
+uvicorn
 
 # ===========================
 # Machine Learning

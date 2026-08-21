@@ -155,3 +155,7 @@ async def reset_database():
         raise HTTPException(status_code=500, detail="; ".join(errors))
 
     return JSONResponse(content={"message": "Database and uploads cleared successfully."})
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
