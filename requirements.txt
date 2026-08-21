@@ -82,5 +82,6 @@ lxml
 # ===========================
 # Text Tokenization
 # ===========================
-tiktokenaiofiles>=23.2.1
+tiktoken
+aiofiles>=23.2.1
 python-multipart>=0.0.9
